@@ -1,0 +1,19 @@
+# Tests that fail on the pure pinned tag (v3.1.37) on macOS, with CI's Bun: scripts/fork/check.sh run on a git archive
+# of the tag, 2026-11-16 (FORK.md, The check). Upstream's CI runs on Linux. One test name per line.
+a Mac's call keeps the mic open and drops queued speech on SIGUSR1
+JOBS sees the output file a job's process holds open, stops it, and reads its last lines
+then the old short path, when it still leads to the same folder
+test_herdr_artifact_preview.Preview.test_serves_the_viewer_and_the_artifact_on_loopback_only
+test_herdr_browser_args.BrowserArgs.test_a_relative_screenshot_lands_where_the_agent_is
+test_herdr_browser_args.BrowserArgs.test_pdf_recording_download_and_folders
+test_herdr_task.AutomationFromAnotherMachine.test_a_merge_on_b_starts_one_run_on_a
+test_herdr_task.AutomationFromAnotherMachine.test_match_still_narrows
+test_herdr_task.AutomationFromAnotherMachine.test_missed_while_down_is_caught_up_once
+test_herdr_task.AutomationFromAnotherMachine.test_other_events_too
+test_herdr_task.AutomationFromAnotherMachine.test_unknown_or_unreachable_machine
+test_herdr_task.Autopilot.test_a_folder_told_from_another_machines_window
+test_herdr_task.ProcessTable.test_a_real_tree_from_one_read
+test_install.Install.test_install_again_update_uninstall
+test_install.Install.test_unit_path_has_hc
+test_layout.Upgrade.test_upgrade_moves_everything_and_keeps_it_working
+test_restart.Detach.test_with_setsid
