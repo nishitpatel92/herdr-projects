@@ -48,6 +48,15 @@ class SpaceArg(unittest.TestCase):
             fork_spaces.space_arg("shop", SPACES)
         self.assertIn("2 spaces are named 'shop'", str(e.exception))
 
+    def test_a_window_with_no_spaces_takes_none(self):
+        with self.assertRaises(Fail) as e:
+            fork_spaces.space_arg("null", [])
+        self.assertIn("no spaces", str(e.exception))
+        with mock.patch.object(fork_spaces.shutil, "which", return_value="/bin/herdr-app"), \
+                mock.patch.object(fork_spaces, "run", side_effect=ls([])):
+            with self.assertRaises(Fail):
+                fork_spaces.space_arg("sp1")
+
     def test_read_from_herdr_app_ls(self):
         with mock.patch.object(fork_spaces.shutil, "which", return_value="/bin/herdr-app"), \
                 mock.patch.object(fork_spaces, "run", side_effect=ls(SPACES)) as run:

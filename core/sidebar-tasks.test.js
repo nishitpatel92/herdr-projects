@@ -1,6 +1,6 @@
 // Fork (nishitpatel92): which tasks the Spaces sidebar lists under each space (core/sidebar-tasks.js).
 import { describe, expect, test } from "bun:test";
-import { liveTasks, spaceOfTask } from "./sidebar-tasks.js";
+import { liveTasks, spaceOfTask, followFolder } from "./sidebar-tasks.js";
 
 const NOW = 1_800_000_000_000;
 const OLD = NOW - 3600000;
@@ -72,5 +72,26 @@ describe("grouping by space", () => {
     const a = list([{ id: 10, state: "running", started: NOW - 1000, space: "sp1" }]);
     const b = list([{ id: 2, state: "running", started: NOW - 1000, space: "sp1" }], { slug: "dev-y", prefix: "Y", folder: "/y" });
     expect(ids(liveTasks([a, b], SPACES, () => ({}), NOW).get("sp1"))).toEqual(["X-10:working", "Y-2:working"]);
+  });
+});
+
+describe("following the task lists' folder", () => {
+  const run = (watches, rounds) => {
+    const log = [];
+    let n = 0;
+    return followFolder({
+      watch: () => { const r = watches[n++] ?? "never"; log.push(`watch:${r}`); return r === "change" ? Promise.resolve() : r === "fail" ? Promise.reject(new Error("gone")) : new Promise(() => {}); },
+      sleep: () => Promise.resolve(),
+      load: async () => { log.push("load"); },
+      stop: () => log.filter((x) => x.startsWith("watch")).length >= rounds,
+    }).then(() => log);
+  };
+
+  test("reads once, then after each change", async () => {
+    expect(await run(["change", "change"], 2)).toEqual(["load", "watch:change", "load", "watch:change", "load"]);
+  });
+
+  test("a failed watch reads the lists again once it is armed again (a change in the pause isn't lost)", async () => {
+    expect(await run(["fail", "change"], 2)).toEqual(["load", "watch:fail", "load", "watch:change", "load"]);
   });
 });

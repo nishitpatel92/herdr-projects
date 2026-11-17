@@ -14,7 +14,7 @@ import { agents, terminals, spaces } from "./live.js";
 import { dirs } from "./dirs.js";
 import { READ_LISTS, taskLists } from "./core/tasklists.js";
 import { RANK, autoPrefix, machineOf } from "./core/tasks.js";
-import { liveTasks } from "./core/sidebar-tasks.js";
+import { liveTasks, followFolder } from "./core/sidebar-tasks.js";
 import { sectionOf, data } from "./sections.js";
 import { TEXT, RADIUS, red, amber } from "./ui.js";
 
@@ -44,19 +44,9 @@ export function attachTasks(view, cx) {
     cx.notify();
   };
 
-  // This computer's: once, then on every change of its tasks folder; a failed watch is tried again after 5 s.
-  cx.spawn(async (cx) => load(cx, null));
-  cx.spawn(async (cx) => {
-    let w = null;
-    for (;;) {
-      w ??= watchFolder(dirs().tasks).then(() => true, () => false);
-      const got = await Promise.race([w, cx.sleep(5000).then(() => "wait")]);
-      if (got === "wait") continue;
-      w = null;
-      if (got) await load(cx, null);
-      else await cx.sleep(5000);
-    }
-  });
+  // This computer's: once, then on every change of its tasks folder; a failed watch is tried again after 5 s, and the
+  // lists read again then (core/sidebar-tasks.js followFolder).
+  cx.spawn(async (cx) => followFolder({ watch: () => watchFolder(dirs().tasks), sleep: (ms) => cx.sleep(ms), load: () => load(cx, null) }));
 
   // Other machines': with the sidebar's own machine refresh (every 15 s), only those with spaces here.
   const refresh = view.refreshMachines.bind(view);
