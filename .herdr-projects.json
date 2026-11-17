@@ -1,0 +1,4 @@
+{
+  "workspace": { "setup": "bash scripts/fork/setup.sh" },
+  "check": { "command": "npm run check -- --all", "again": "npm run check -- --all" }
+}
