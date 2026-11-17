@@ -44,18 +44,19 @@ export function liveTasks(lists, spaces, liveOf = () => ({}), now = Date.now()) 
   return out;
 }
 
-// Follows a folder (the task lists): load() once, then again after each change. A watch that fails is armed again
-// after a pause and the folder read again, since a change during the pause has no watch to see it. Each wait is at
-// most `beat` ms (a reload's old build then ends at its next sleep). Runs until stop() says so.
+// Follows a folder (the task lists): load() once, then again after each change. The watch is always armed before the
+// read, so a change made while a read runs fires the next watch instead of being lost. A watch that fails is armed
+// again after a pause and the folder read again. Each wait is at most `beat` ms (a reload's old build then ends at its
+// next sleep). Runs until stop() says so.
 export async function followFolder({ watch, sleep, load, stop = () => false, pause = 5000, beat = 5000 }) {
+  const arm = () => watch().then(() => true, () => false);
+  let w = arm();
   await load();
-  let w = null;
   while (!stop()) {
-    w ??= watch().then(() => true, () => false);
     const got = await Promise.race([w, sleep(beat).then(() => "wait")]);
     if (got === "wait") continue;
-    w = null;
     if (!got) await sleep(pause);
+    w = arm();
     await load();
   }
 }

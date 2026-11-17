@@ -87,11 +87,30 @@ describe("following the task lists' folder", () => {
     }).then(() => log);
   };
 
-  test("reads once, then after each change", async () => {
-    expect(await run(["change", "change"], 2)).toEqual(["load", "watch:change", "load", "watch:change", "load"]);
+  test("reads once, then after each change; the watch is armed before every read", async () => {
+    expect(await run(["change", "change", "never"], 3)).toEqual(["watch:change", "load", "watch:change", "load", "watch:never", "load"]);
   });
 
-  test("a failed watch reads the lists again once it is armed again (a change in the pause isn't lost)", async () => {
-    expect(await run(["fail", "change"], 2)).toEqual(["load", "watch:fail", "load", "watch:change", "load"]);
+  test("a failed watch is armed again and the lists read again (a change in the pause isn't lost)", async () => {
+    expect(await run(["fail", "change", "never"], 3)).toEqual(["watch:fail", "load", "watch:change", "load", "watch:never", "load"]);
+  });
+
+  test("a change made while a read runs is seen by the next watch, not lost", async () => {
+    let file = "running", shown = null, rounds = 0, fire = null;
+    const reads = [];
+    await followFolder({
+      watch: () => new Promise((res) => { fire = res; }),
+      sleep: () => new Promise(() => {}),
+      load: async () => {
+        reads.push(file);
+        const read = file;
+        // the first read: the file changes after it was read, before the read is done (the watch is already armed)
+        if (rounds++ === 0) { file = "done"; fire(); }
+        shown = read;
+      },
+      stop: () => rounds >= 2,
+    });
+    expect(reads).toEqual(["running", "done"]);
+    expect(shown).toBe("done");
   });
 });
