@@ -20,8 +20,17 @@ pin: v3.1.37
 
 ## Our commits on the pin
 
+Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --list` after a change of ours (its own
+commit is listed the next time).
+
 <!-- commits:start -->
-- (filled in by scripts/fork/sync.sh on each sync)
+- b9406b2d scripts/fork: the check (upstream CI's steps, here), the sync script, CI's Bun, and the tests known to fail on the pure tag on macOS
+- 154492da FORK.md: this fork's pin (v3.1.37), its branches and its sync checklist; the board's config for it
+- 8195ad32 Proxy mode: docs/web-proxy.md
+- a2bec01e Proxy mode: shepherdr web proxy|pair|devices|revoke (service/proxy-cli.ts) and its tests
+- 16a65084 Proxy mode: hook it into main.ts (one-line hunks) with an end-to-end test
+- a59a263c Proxy mode: a second listener for a trusted reverse proxy, behind device pairing (service/proxy.ts)
+- a88a5b53 Proxy mode: paired devices with one-time codes and hashed cookies (service/devices.ts)
 <!-- commits:end -->
 
 ## What we change, and where

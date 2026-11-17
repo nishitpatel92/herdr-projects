@@ -3,6 +3,8 @@
 #   scripts/fork/sync.sh <tag> --dry-run [--ref <upstream ref>] [--from <branch>]
 #       what a merge of <tag> (or any upstream ref, e.g. upstream/main) into <branch> (default main) would do: changes
 #       nothing (git merge-tree). Exit 0: it merges cleanly; 1: conflicts (the files are listed); 2: can't run.
+#   scripts/fork/sync.sh --list
+#       FORK.md's list of our commits brought up to date on the current pin (commit it yourself).
 #   scripts/fork/sync.sh <tag> [--from <branch>] [--no-check]
 #       the real run: a branch sync/<tag> from <branch> with <tag> merged in (a merge commit, never a rebase), FORK.md's
 #       pin and commit list brought up to date, scripts/fork/check.sh run, and our delta before and after printed (the
@@ -10,16 +12,34 @@
 # It never pushes, never force-pushes and never tags: it prints the commands for that.
 set -u
 die() { echo "sync: $1" >&2; exit "${2:-2}"; }
+# FORK.md with pin: <tag> and our commits on top of it (git log <tag>..HEAD, without merges) between its markers
+write_fork() {
+  list=$(mktemp "${TMPDIR:-/tmp}/fork-list.XXXXXX")
+  git log --no-merges --format='- %h %s' "$1..HEAD" -- . ':(exclude)FORK.md' > "$list"
+  awk -v pin="$1" -v listfile="$list" '
+    /^pin: / { print "pin: " pin; next }
+    /<!-- commits:start -->/ { print; while ((getline l < listfile) > 0) print l; skip = 1; next }
+    /<!-- commits:end -->/ { skip = 0 }
+    !skip { print }' FORK.md > FORK.md.tmp && mv FORK.md.tmp FORK.md
+  rm -f "$list" FORK.md.tmp
+}
 cd "$(git rev-parse --show-toplevel 2>/dev/null)" || die "not in a git checkout"
 
 tag="" dry=0 ref="" from=main check=1
+if [ "${1:-}" = --list ]; then
+  pin=$(sed -n 's/^pin: *\(v[^ ]*\) *$/\1/p' FORK.md 2>/dev/null | head -1)
+  [ -n "$pin" ] || die "FORK.md has no pin: line"
+  write_fork "$pin"
+  git --no-pager diff --stat -- FORK.md
+  exit 0
+fi
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry=1 ;;
     --ref) ref=${2:-}; shift ;;
     --from) from=${2:-}; shift ;;
     --no-check) check=0 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$tag" ] || die "one tag only"; tag=$1 ;;
   esac
@@ -92,12 +112,7 @@ if ! git merge -q --no-ff --no-edit -m "Sync to upstream $tag" "$tag"; then
 fi
 
 # FORK.md: the new pin and our commits on top of it
-list=$(git log --no-merges --format='- %h %s' "$tag..HEAD" -- . ':(exclude)FORK.md')
-awk -v pin="$tag" -v list="$list" '
-  /^pin: / { print "pin: " pin; next }
-  /<!-- commits:start -->/ { print; print list; skip = 1; next }
-  /<!-- commits:end -->/ { skip = 0 }
-  !skip { print }' FORK.md > FORK.md.tmp && mv FORK.md.tmp FORK.md
+write_fork "$tag"
 git commit -q -am "FORK.md: pin $tag" || die "can't commit FORK.md"
 
 # our delta before and after: the interdiff (only moved lines should differ)
