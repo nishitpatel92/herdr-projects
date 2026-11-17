@@ -13,6 +13,7 @@ import { randomBytes } from "node:crypto";
 import { DATA, SOCK, TOKEN, PORT, HOME, ensureData, settingsFile, where } from "./paths.ts";
 import { holdLock } from "./lock.ts";
 import { gate, localCaller, type Gate } from "./auth.ts";
+import { withProxy, proxyPass, proxied, proxyDevice, proxyOrigin, proxyLink, proxyApi, pushOrigin } from "./proxy.ts";   // fork: FORK.md
 import { refusedWhy, trustedPeer } from "./peer.ts";
 import { whoami, share, served, unshare, restoreShare, httpsPort, webLink, webOrigin, deviceOf, forwardedFrom, HTTPS_PORT_FILE, type Me } from "./tailscale.ts";
 import { qrFile } from "./qr.ts";
@@ -126,7 +127,7 @@ let saidPeer = "";
 // looked at again with the rest of the tailnet; ownLink: this machine's own link on it
 let hp = httpsPort();
 g.httpsPort = hp;
-const ownLink = () => (me ? webLink(me.dns, hp) : null);
+const ownLink = () => proxyLink() ?? (me ? webLink(me.dns, hp) : null);
 const live = new Live(hub, store, () => me, VERSION, ownLink);
 const compat = new Compat();
 const model = new Model(hub, live);
@@ -135,7 +136,7 @@ live.compat = compat;
 compat.reader = (a) => live.chats?.reader(a) ?? null;
 // the chat scrolled to its top: the page before (as the window's loadEarlier)
 (compat as any).earlier = (a: string) => live.chats?.earlier(a);
-const push = new Push(() => (me ? webOrigin(me.dns, hp) : "https://herdr.dev"));
+const push = new Push(pushOrigin(() => (me ? webOrigin(me.dns, hp) : "https://herdr.dev")));
 // only the machine that serves the web app sends push alerts (its pages subscribed there): never two of one alert
 const pushSend = push.send.bind(push);
 push.send = ((a: any) => (host.serving() ? pushSend(a) : Promise.resolve())) as typeof push.send;
@@ -359,7 +360,7 @@ async function tailnet() {
   host.link = own;
   // another machine serves it: its link (the window's Settings › Web shows it and its QR code); this one isn't shared
   const link = serving ? own : host.hostLink();
-  let why: string | null = me || !serving ? null : "Tailscale isn't running here";
+  let why: string | null = me || !serving || proxyOrigin() ? null : "Tailscale isn't running here";
   // what tailscale serve said when sharing failed (doctor counts it as broken, not a note)
   let shareWhy: string | null = null;
   if (me && on && serving) {
@@ -670,12 +671,13 @@ async function doAction(body: any): Promise<Response> {
 
 /** The tailnet device a request came from (tailscale serve's forwarded address, as its node's id), or null: this
  *  machine's own callers (the window, the CLI) aren't a device of the tailnet. */
-async function deviceFrom(req: Request, via: "tailnet" | "local") {
+async function deviceFrom(req: Request, via: "tailnet" | "local" | "proxy") {
+  if (via === "proxy") return proxyDevice(req);
   const ip = via === "tailnet" ? forwardedFrom(req) : null;
   return ip ? await deviceOf(ip) : null;
 }
 
-const server = Bun.serve<{ who: string }>({
+const server = Bun.serve<{ who: string }>(withProxy({
   hostname: "127.0.0.1",
   port: PORT,
   // a send with many pictures (copied to another machine, Claude Code reading each) can take longer than Bun's 10 s
@@ -689,20 +691,21 @@ const server = Bun.serve<{ who: string }>({
       // the other machines this service ticks (Serve from: the host the ones with no service of their own)
       ticks: jobs.on ? host.tickOn() : [] });
     // the Web add-on switched off: nothing for the tailnet (this machine's own callers still get the API)
-    if (req.headers.has("tailscale-user-login") && !webOn()) return new Response("Shepherdr's web app is off (Shepherdr settings › Window › Add-ons).", { status: 404 });
+    if ((req.headers.has("tailscale-user-login") || proxied(req)) && !webOn()) return new Response("Shepherdr's web app is off (Shepherdr settings › Window › Add-ons).", { status: 404 });
     // another machine serves it now (Serve from): a page that still comes here goes there
-    if (req.headers.has("tailscale-user-login") && !host.serving()) {
+    if ((req.headers.has("tailscale-user-login") || proxied(req)) && !host.serving()) {
       const there = host.hostLink();
       return there ? Response.redirect(there, 302) : new Response("Shepherdr's web app is served from another machine now.", { status: 404 });
     }
     const socket = path === "/api/ws" || path === "/api/terminal" || path === "/api/browser" || path === "/api/voice";
     const viaTailnet = req.headers.has("tailscale-user-login");
-    const pass = gate(req, g, socket, viaTailnet && trustedPeer(srv.requestIP(req)?.port, PORT));
+    const pass = proxyPass(req) ?? gate(req, g, socket, viaTailnet && trustedPeer(srv.requestIP(req)?.port, PORT));
     if (!pass.ok) {
       const why = refusedWhy(pass.why);
       if (why !== pass.why && why !== saidPeer) console.error(`web: ${(saidPeer = why)}`);
       return new Response(why, { status: pass.status });
     }
+    { const r = await proxyApi(req, pass); if (r) return r; }   // fork: shepherdr web pair|devices|revoke
     if (path === "/api/browser") {
       // a task's browser (2.1's Browser panel): this machine's tasks
       const t = compat.taskOf(url.searchParams.get("task") ?? "");
@@ -951,7 +954,7 @@ const server = Bun.serve<{ who: string }>({
     // SHEP-173: a muted call sends nothing for minutes (Bun's default closes a quiet socket after 120 s); pages ping too
     idleTimeout: 600,
   },
-});
+}));
 
 console.log(`Shepherdr ${VERSION} on http://127.0.0.1:${server.port} (data ${DATA})${me && webOn() ? `, ${ownLink()}` : ""}`);
 
