@@ -1,1 +1,4 @@
-{ "workspace": { "setup": "sh scripts/setup.sh" }, "check": { "command": "npm run check -- --all", "again": "npm run check -- --since $HERDR_PROJECTS_CHECKED" } }
+{
+  "workspace": { "setup": "bash scripts/fork/setup.sh" },
+  "check": { "command": "npm run check -- --all", "again": "npm run check -- --all" }
+}
