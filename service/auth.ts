@@ -8,7 +8,7 @@
 // httpsPort: the tailnet HTTPS port the web app is shared on (none: 443); the page's host and origin carry it when it
 // isn't 443, and only that port gets in.
 export type Gate = { owner: string | null; dns: string | null; port: number; token: string; httpsPort?: number };
-export type Pass = { ok: true; who: string; via: "tailnet" | "local" } | { ok: false; status: number; why: string };
+export type Pass = { ok: true; who: string; via: "tailnet" | "local" | "proxy" } | { ok: false; status: number; why: string };
 
 const READS = new Set(["GET", "HEAD"]);
 
