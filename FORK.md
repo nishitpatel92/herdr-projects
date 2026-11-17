@@ -26,6 +26,7 @@ Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --
 on its own (a commit that touches only FORK.md is not listed). `scripts/fork/check.sh` fails when the list is out of date.
 
 <!-- commits:start -->
+- 9cb5d6e1 Review round 2: the tasks-folder watch is armed before every read, so a change during a read isn't lost
 - e047f6a7 Review round 1: a window with no spaces takes no --space value; a failed tasks-folder watch reads the lists again
 - 3cf757c9 herdr-task --space: a space's name becomes its id; one no space has fails, listing the spaces
 - 69f61105 Spaces sidebar: each space's live tasks under it (working, needs you, waiting), a click opening the task
