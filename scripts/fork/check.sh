@@ -39,6 +39,17 @@ judge() {
   [ -z "$newer" ] || bad "$1:$newer"
 }
 
+step "FORK.md lists our commits"
+pin=$(sed -n 's/^pin: *\(v[^ ]*\) *$/\1/p' FORK.md 2>/dev/null | head -1)
+if [ -n "$pin" ] && git rev-parse -q --verify "refs/tags/$pin^{commit}" > /dev/null 2>&1; then
+  want=$(git log --no-merges --format='- %h %s' "$pin..HEAD" -- . ':(exclude)FORK.md')
+  have=$(sed -n '/<!-- commits:start -->/,/<!-- commits:end -->/p' FORK.md | sed '1d;$d')
+  if [ "$want" = "$have" ]; then echo "up to date ($(printf '%s\n' "$want" | grep -c .) commits on $pin)"
+  else bad "FORK.md's list of our commits is out of date: scripts/fork/sync.sh --list, then commit FORK.md on its own"; fi
+else
+  echo "no git history or pin tag here: not compared"
+fi
+
 step "shared lib copies match lib/"
 python3 bin/sync-shared --check || bad "sync-shared"
 

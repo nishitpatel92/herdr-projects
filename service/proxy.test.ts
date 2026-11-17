@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gate, type Gate, type Pass } from "./auth.ts";
 import { Devices } from "./devices.ts";
-import { COOKIE, Proxy, parseConf, proxyOrigin, pushOrigin, readConf, useProxy } from "./proxy.ts";
+import { COOKIE, Proxy, everyInterface, parseConf, proxyOrigin, pushOrigin, readConf, useProxy } from "./proxy.ts";
 
 const ORIGIN = "https://shepherdr.blackbox";
 const conf = parseConf({ bind: "127.0.0.1", port: 7789, origin: ORIGIN });
@@ -35,8 +35,12 @@ describe("proxy.json", () => {
     writeFileSync(join(d, "proxy.json"), JSON.stringify({ bind: "shepherdr.blackbox", origin: ORIGIN }));
     expect(readConf(join(d, "proxy.json"), quiet)).toBeNull();
   });
-  test("every interface is refused", () => {
-    for (const bind of ["0.0.0.0", "::", "::0"]) expect(parseConf({ bind, origin: ORIGIN })).toMatchObject({ ok: false });
+  test("every interface is refused, in any spelling", () => {
+    for (const bind of ["0.0.0.0", "::", "::0", "0:0::0", "0:0:0:0:0:0:0:0", "::ffff:0.0.0.0", "::ffff:0:0", "0::ffff:0.0.0.0", "::%en0"]) {
+      expect(everyInterface(bind)).toBe(true);
+      expect(parseConf({ bind, origin: ORIGIN })).toMatchObject({ ok: false });
+    }
+    for (const bind of ["172.30.172.1", "127.0.0.1", "::1", "::ffff:172.30.172.1", "fe80::1", "0.0.0.1"]) expect(everyInterface(bind)).toBe(false);
   });
   test("the origin is https and nothing after the name", () => {
     for (const origin of ["http://shepherdr.blackbox", "https://shepherdr.blackbox/shepherdr", "https://u@shepherdr.blackbox", "nope"])
@@ -219,15 +223,38 @@ describe("/api/proxy for this machine's own callers", () => {
   });
 });
 
-describe("push alerts", () => {
-  test("their subject is the proxy's origin when it is on, else the tailnet's", () => {
+const stub = { fetch: () => new Response("app"), websocket: { message() {} } };
+const devs = () => new Devices(join(tmp(), "devices.json"), undefined, quiet);
+
+describe("the link and push alerts follow the listener", () => {
+  test("push's subject is the proxy's origin once its listener is up, else the tailnet's", () => {
     const subject = pushOrigin(() => "https://box.tailnet.example");
+    const p = new Proxy({ bind: "127.0.0.1", port: 0, origin: ORIGIN, host: "shepherdr.blackbox" }, devs(), quiet);
     try {
-      useProxy(new Proxy(null, new Devices(join(tmp(), "devices.json"), undefined, quiet), quiet));
+      useProxy(new Proxy(null, devs(), quiet));
       expect(subject()).toBe("https://box.tailnet.example");
       expect(proxyOrigin()).toBeNull();
-      useProxy(new Proxy(conf.ok ? conf.conf : null, new Devices(join(tmp(), "devices.json"), undefined, quiet), quiet));
+      useProxy(p);
+      expect(subject()).toBe("https://box.tailnet.example");   // configured, not listening yet
+      p.listen(stub);
       expect(subject()).toBe(ORIGIN);
-    } finally { useProxy(null); }
+      expect(p.link).toBe(`${ORIGIN}/shepherdr/`);
+    } finally { p.stop(); useProxy(null); }
+  });
+  test("a listener that can't start (the address isn't here yet) shows no proxy link, and is tried again", () => {
+    const errors: string[] = [];
+    const was = console.error;
+    console.error = (s: string) => errors.push(s);
+    // 192.0.2.1 is TEST-NET-1: never an address of this machine
+    const p = new Proxy({ bind: "192.0.2.1", port: 7789, origin: ORIGIN, host: "shepherdr.blackbox" }, devs(), quiet);
+    try {
+      expect(p.listen(stub)).toBe(stub);
+      expect(p.server).toBeNull();
+      expect(p.link).toBeNull();
+      expect(p.origin).toBeNull();
+      expect(errors.join("\n")).toContain("trying again every 30 s");
+      expect((p as any).retry).not.toBeNull();
+    } finally { console.error = was; p.stop(); }
+    expect((p as any).retry).toBeNull();
   });
 });

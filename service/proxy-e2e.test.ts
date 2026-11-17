@@ -31,7 +31,7 @@ const main = Bun.serve<{ who: string }>(p.listen({
 }));
 g.port = main.port!;
 const proxyPort = p.server!.port;
-afterAll(() => { main.stop(true); p.server?.stop(true); });
+afterAll(() => { main.stop(true); p.stop(); });
 
 const local = (path: string, method = "GET") =>
   fetch(`http://127.0.0.1:${main.port}${path}`, { method, headers: { authorization: "Bearer local-token" } });

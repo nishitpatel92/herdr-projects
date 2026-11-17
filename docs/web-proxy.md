@@ -31,11 +31,15 @@ tailnet way keeps working beside it. How the fork is kept: [FORK.md](../FORK.md)
 { "bind": "172.30.172.1", "port": 7789, "origin": "https://shepherdr.blackbox" }
 ```
 
-- `bind`: the address the service listens on for the proxy, an IP literal. `0.0.0.0` and `::` are refused, so the
+- `bind`: the address the service listens on for the proxy, an IP literal. `0.0.0.0` and `::` (in any spelling, `::ffff:0.0.0.0` too) are refused, so the
   service is never open on every interface. On a Docker host, the bridge gateway of the proxy's network (only
   containers on that bridge and processes on the host reach it, and none of them gets in without a device cookie).
 - `port`: default 7789. The service's own listener stays on `127.0.0.1:7788`, unchanged.
 - `origin`: the name the proxy serves, `https://<name>[:port]`, nothing after it.
+
+If the address isn't there when the service starts (a Docker bridge that comes up later at boot), the service tries
+again every 30 s and logs why once. Until the proxy listener is up, the web link and push alerts stay the tailnet's (or
+none); the link follows within a minute of it starting.
 
 The listener a request came in on decides how it gets in: on `127.0.0.1`, upstream's rules (tailnet owner or the local
 token); on the proxy listener, only a paired device. A missing or invalid `proxy.json` leaves the mode off (the log says

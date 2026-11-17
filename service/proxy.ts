@@ -22,7 +22,22 @@ export type ProxyConf = { bind: string; port: number; origin: string; host: stri
 export const CONF_FILE = () => join(DATA, "proxy.json");
 export const COOKIE = "shepherdr_device";
 const MAX_AGE = 400 * 24 * 3600;
-const ANY = new Set(["0.0.0.0", "::", "0:0:0:0:0:0:0:0", "::0"]);
+const RETRY = 30_000;
+
+/** An address that means every interface, in any spelling: 0.0.0.0, ::, 0:0::0, ::ffff:0.0.0.0, ::ffff:0:0, … */
+export function everyInterface(ip: string) {
+  if (isIP(ip) === 4) return ip === "0.0.0.0";
+  if (isIP(ip) !== 6) return false;
+  let s = ip.split("%")[0].toLowerCase();
+  const v4 = s.match(/^(.*:)(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (v4) { const [a, b, c, d] = v4.slice(2).map(Number); s = `${v4[1]}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`; }
+  const [head, tail] = s.includes("::") ? s.split("::") : [s, null];
+  const hs = head ? head.split(":") : [], ts = tail ? tail.split(":") : [];
+  const all = tail === null ? hs : [...hs, ...Array(8 - hs.length - ts.length).fill("0"), ...ts];
+  const n = all.map((x) => parseInt(x || "0", 16));
+  const zero = (xs: number[]) => xs.every((v) => v === 0);
+  return zero(n) || (zero(n.slice(0, 5)) && n[5] === 0xffff && zero(n.slice(6)));
+}
 const SOCKETS = new Set(["/api/ws", "/api/terminal", "/api/browser", "/api/voice"]);
 const READS = new Set(["GET", "HEAD"]);
 
@@ -31,7 +46,7 @@ export function parseConf(raw: any): { ok: true; conf: ProxyConf } | { ok: false
   if (!raw || typeof raw !== "object") return { ok: false, why: "not a JSON object" };
   const bind = String(raw.bind ?? "").trim();
   if (!isIP(bind)) return { ok: false, why: `bind must be an IP address (got ${JSON.stringify(raw.bind ?? null)})` };
-  if (ANY.has(bind)) return { ok: false, why: "bind may not be every interface (0.0.0.0 or ::): name the address the proxy reaches" };
+  if (everyInterface(bind)) return { ok: false, why: "bind may not be every interface (0.0.0.0 or ::): name the address the proxy reaches" };
   const port = raw.port === undefined ? 7789 : Number(raw.port);
   if (!Number.isInteger(port) || port < 1 || port > 65535) return { ok: false, why: "port must be 1-65535" };
   let u: URL;
@@ -86,8 +101,9 @@ export class Proxy {
   private passes = new WeakMap<Request, ProxyPass>();
   constructor(readonly conf: ProxyConf | null, readonly devices: Devices, private log = (s: string) => console.log(s)) {}
 
-  get origin() { return this.conf?.origin ?? null; }
-  get link() { return this.conf ? `${this.conf.origin}/shepherdr/` : null; }
+  // Only while the proxy listener is up: until it is (or when it can't start), the link and push stay the tailnet's
+  get origin() { return this.conf && this.server ? this.conf.origin : null; }
+  get link() { return this.origin ? `${this.origin}/shepherdr/` : null; }
   pass(req: Request): Pass | null { return this.passes.get(req) ?? null; }
   proxied(req: Request) { return this.passes.has(req); }
   device(req: Request) { const p = this.passes.get(req); return p ? `proxy:${p.device.id}` : null; }
@@ -179,14 +195,27 @@ export class Proxy {
   listen<T>(opts: T): T {
     const c = this.conf, o = opts as any;
     if (!c) return opts;
-    try {
-      const s = Bun.serve({ hostname: c.bind, port: c.port, idleTimeout: o.idleTimeout, websocket: o.websocket,
-        fetch: (req: Request, srv: any) => this.front(req, srv, (r, sv) => o.fetch.call(sv, r, sv)) } as any);
-      this.server = s;
-      this.log(`proxy: the web app on http://${c.bind.includes(":") ? `[${c.bind}]` : c.bind}:${s.port} for ${c.origin}`);
-    } catch (e) { console.error(`proxy: can't listen on ${c.bind}:${c.port}: ${(e as Error).message}; proxy mode is off`); }
+    // the address may not be there yet (a Docker bridge at boot): tried again every 30 s until it is
+    let said = "";
+    const start = () => {
+      try {
+        const s = Bun.serve({ hostname: c.bind, port: c.port, idleTimeout: o.idleTimeout, websocket: o.websocket,
+          fetch: (req: Request, srv: any) => this.front(req, srv, (r, sv) => o.fetch.call(sv, r, sv)) } as any);
+        this.server = s;
+        this.log(`proxy: the web app on http://${c.bind.includes(":") ? `[${c.bind}]` : c.bind}:${s.port} for ${c.origin}`);
+      } catch (e) {
+        const why = `proxy: can't listen on ${c.bind}:${c.port}: ${(e as Error).message}; trying again every 30 s`;
+        if (why !== said) console.error((said = why));
+        this.retry = setTimeout(start, RETRY);
+        (this.retry as any).unref?.();
+      }
+    };
+    start();
     return opts;
   }
+  /** Stops the listener and any retry (tests). */
+  stop() { if (this.retry) clearTimeout(this.retry); this.retry = null; this.server?.stop(true); this.server = null; }
+  private retry: ReturnType<typeof setTimeout> | null = null;
   server: ReturnType<typeof Bun.serve> | null = null;
 }
 

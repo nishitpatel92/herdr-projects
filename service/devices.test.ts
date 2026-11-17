@@ -41,7 +41,7 @@ describe("pairing codes", () => {
     for (let i = 0; i < MAX_WRONG; i++) expect(d.pair("WRONG" + i, "x").ok).toBe(false);
     expect(d.openCodes()).toBe(0);
     expect(d.pair(code, "the 11th try")).toMatchObject({ ok: false });
-    expect(logs.join("\n")).toContain("every open code is void");
+    expect(logs.join("\n")).toContain(`${MAX_WRONG} wrong pairing codes in 5 minutes; every open code is void`);
     expect(logs.join("\n")).not.toContain(code);
   });
   test("after codes are voided the count starts again: one wrong try doesn't void the next code", () => {

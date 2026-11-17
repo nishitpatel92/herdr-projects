@@ -20,8 +20,8 @@ pin: v3.1.37
 
 ## Our commits on the pin
 
-Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --list` after a change of ours (its own
-commit is listed the next time).
+Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --list` after a change of ours, committed
+on its own (a commit that touches only FORK.md is not listed). `scripts/fork/check.sh` fails when the list is out of date.
 
 <!-- commits:start -->
 - b9406b2d scripts/fork: the check (upstream CI's steps, here), the sync script, CI's Bun, and the tests known to fail on the pure tag on macOS
