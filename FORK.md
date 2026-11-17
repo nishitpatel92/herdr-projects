@@ -26,6 +26,8 @@ Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --
 on its own (a commit that touches only FORK.md is not listed). `scripts/fork/check.sh` fails when the list is out of date.
 
 <!-- commits:start -->
+- 3cf757c9 herdr-task --space: a space's name becomes its id; one no space has fails, listing the spaces
+- 69f61105 Spaces sidebar: each space's live tasks under it (working, needs you, waiting), a click opening the task
 - e1ce2093 Proxy mode: second-review fixes (link and push follow the listener, which retries; every-interface in any spelling; voided-codes log count; check.sh keeps FORK.md's commit list current)
 - 38c0cc64 check.sh: read unittest failures in both name formats (Python 3.9's has no method name)
 - 49b63172 Proxy mode: review fixes (wrong-try count restarts after voiding, same-site fetches refused, CLI flags need values, names cleaned in the log)
