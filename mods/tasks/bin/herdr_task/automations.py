@@ -17,6 +17,7 @@ from .settings import bare, set_task, settings_for, SET_KEYS, worker_argv, workt
 from .agents import agent_running, live_agents, starting, status_of, task_status
 from .sessions import session_of
 from .launch import default_space
+from .fork_spaces import space_arg  # fork: --space resolved to an id
 from .store import locate, open_store, read_list, Store, store_files
 from .queues import queue_reason
 from .archive import archive_pass
@@ -253,7 +254,7 @@ def set_auto_fields(s, a, args, adding=False):
             raise Fail("Worktrees need a git repo.")
         a["mode"] = "here" if args.here else "worktree"
     if args.space:
-        a["space"] = bare(args.space)
+        a["space"] = space_arg(args.space)
     if args.parent:
         a["parent"] = args.parent
     if getattr(args, "set", None):
