@@ -24,6 +24,10 @@ Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --
 on its own (a commit that touches only FORK.md is not listed). `scripts/fork/check.sh` fails when the list is out of date.
 
 <!-- commits:start -->
+- e1ce2093 Proxy mode: second-review fixes (link and push follow the listener, which retries; every-interface in any spelling; voided-codes log count; check.sh keeps FORK.md's commit list current)
+- 38c0cc64 check.sh: read unittest failures in both name formats (Python 3.9's has no method name)
+- 49b63172 Proxy mode: review fixes (wrong-try count restarts after voiding, same-site fetches refused, CLI flags need values, names cleaned in the log)
+- 64b52e99 sync.sh: write FORK.md's commit list from a file (macOS awk), add --list; FORK.md lists our commits
 - b9406b2d scripts/fork: the check (upstream CI's steps, here), the sync script, CI's Bun, and the tests known to fail on the pure tag on macOS
 - 154492da FORK.md: this fork's pin (v3.1.37), its branches and its sync checklist; the board's config for it
 - 8195ad32 Proxy mode: docs/web-proxy.md
