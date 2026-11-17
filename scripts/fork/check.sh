@@ -79,7 +79,9 @@ python3 -m unittest discover -s test > "$work/py.log" 2>&1
 rc=$?
 tail -3 "$work/py.log"
 if [ $rc != 0 ]; then
-  grep -E '^(FAIL|ERROR): ' "$work/py.log" | sed 's/.*(\(.*\))$/\1/' | sort -u > "$work/py.fail"
+  # "FAIL: test_x (module.Class.test_x)" (Python 3.11+) or "FAIL: test_x (module.Class)" (older): module.Class.test_x
+  grep -E '^(FAIL|ERROR): ' "$work/py.log" | sed -E 's/^(FAIL|ERROR): ([^ ]+) \((.*)\)$/\2 \3/' \
+    | awk '{ n = length($1); if (substr($2, length($2) - n) == "." $1) print $2; else print $2 "." $1 }' | sort -u > "$work/py.fail"
   judge "unittest" "$work/py.fail"
 fi
 
