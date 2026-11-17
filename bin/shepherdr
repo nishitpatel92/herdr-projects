@@ -13,6 +13,9 @@
   shepherdr web status                  which machine serves it, and its link
   shepherdr web https-port [N]          the tailnet HTTPS port this machine shares the web app on (default 443): another
                                         one when something else here holds 443; no N: the one now
+  shepherdr web proxy setup --bind <ip> --origin https://<name> [--port 7789] | status | off   (this fork's own,
+                                        docs/web-proxy.md) the web app through a reverse proxy, each device paired
+  shepherdr web pair [--name <device>] | devices | revoke <id>   pair a device (a one-time code), list, revoke
   shepherdr secrets move-to <machine|here> [--restore]   the machine that keeps the secrets (the vault agents use by
                                         name): moves them there, with a backup on both; --restore: the old one takes its
                                         backup back when the other is gone for good
@@ -1880,6 +1883,18 @@ def cmd_web_https_port(a):
     return 1 if out["error"] else 0
 
 
+def cmd_web_proxy(args):
+    """This fork's proxy mode (FORK.md): shepherdr web proxy|pair|devices|revoke run service/proxy-cli.ts with Bun."""
+    bun = bun_path()
+    script = next((p for p in (os.path.join(real_home(), SHARE, "service", "proxy-cli.ts"),
+                               os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "service", "proxy-cli.ts"))
+                   if os.path.isfile(p)), None)
+    if not bun or not script:
+        print("shepherdr: Shepherdr's service isn't installed here (it needs Bun): ./install.sh first", file=sys.stderr)
+        return 1
+    return subprocess.run([bun, script] + list(args)).returncode
+
+
 def cmd_web(a):
     if a.action == "install-on":
         return cmd_web_install_on(a)
@@ -2015,6 +2030,8 @@ def hand_over(a, argv):
 
 
 def main(argv):
+    if argv[:1] == ["web"] and argv[1:2] and argv[1] in ("proxy", "pair", "devices", "revoke"):   # fork: FORK.md
+        return cmd_web_proxy(argv[1:])
     ap = argparse.ArgumentParser(prog="shepherdr", description="Install, update, check or remove Shepherdr in Herdr.")
     sub = ap.add_subparsers(dest="cmd")
     for name in ("install", "update", "uninstall", "doctor"):
