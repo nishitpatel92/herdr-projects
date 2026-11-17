@@ -55,6 +55,12 @@ class ProxyCommands(unittest.TestCase):
         self.assertNotEqual(shep(self.data, "web", "proxy", "setup", "--bind", "10.0.0.1", "--origin", "http://x.blackbox").returncode, 0)
         self.assertFalse(os.path.exists(self.conf))
 
+    def test_a_flag_without_its_value_is_refused(self):
+        p = shep(self.data, "web", "proxy", "setup", "--bind", "10.0.0.1", "--origin", "https://x.blackbox", "--port")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("--port needs a value", p.stderr)
+        self.assertFalse(os.path.exists(self.conf))
+
     def test_pair_without_a_service_says_so(self):
         p = shep(self.data, "web", "pair")
         self.assertNotEqual(p.returncode, 0)

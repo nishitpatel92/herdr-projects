@@ -44,6 +44,14 @@ describe("pairing codes", () => {
     expect(logs.join("\n")).toContain("every open code is void");
     expect(logs.join("\n")).not.toContain(code);
   });
+  test("after codes are voided the count starts again: one wrong try doesn't void the next code", () => {
+    const { d } = setup();
+    d.mint();
+    for (let i = 0; i < MAX_WRONG; i++) d.pair("WRONG" + i, "x");
+    const fresh = d.mint().code;
+    d.pair("TYPO", "x");
+    expect(d.pair(fresh, "x").ok).toBe(true);
+  });
   test("wrong tries spread over more than 5 minutes don't add up", () => {
     const { d, tick } = setup();
     for (let i = 0; i < MAX_WRONG - 1; i++) d.pair("NOPE", "x");

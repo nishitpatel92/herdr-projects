@@ -15,7 +15,13 @@ const RESTART = process.platform === "darwin"
   : "systemctl --user restart shepherdr";
 
 const argv = process.argv.slice(2);
-const flag = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
+function flag(name: string) {
+  const i = argv.indexOf(name);
+  if (i < 0) return undefined;
+  const v = argv[i + 1];
+  if (v === undefined || v.startsWith("--")) fail(`${name} needs a value`, 2);
+  return v;
+}
 const VALUED = new Set(["--bind", "--origin", "--port", "--name"]);
 const words = argv.filter((a, i) => !a.startsWith("--") && !VALUED.has(argv[i - 1]));
 const asJson = argv.includes("--json");

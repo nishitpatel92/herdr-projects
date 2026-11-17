@@ -15,7 +15,7 @@ import { isIP } from "node:net";
 import { join } from "node:path";
 import type { Pass } from "./auth.ts";
 import { DATA } from "./paths.ts";
-import { Devices, type Shown } from "./devices.ts";
+import { Devices, cleanName, type Shown } from "./devices.ts";
 import { devicesPage, pairPage } from "./proxy-pages.ts";
 
 export type ProxyConf = { bind: string; port: number; origin: string; host: string };
@@ -109,7 +109,9 @@ export class Proxy {
     const path = strip(url.pathname);
     const socket = SOCKETS.has(path) || (h.get("upgrade") ?? "").toLowerCase() === "websocket";
     if (req.method === "OPTIONS") return no(403, "no cross-site requests");
-    if (h.get("sec-fetch-site") === "cross-site" && !pageLink(req, socket)) return no(403, "cross-site");
+    // another site, or a sibling name on the same private domain (*.blackbox is one site): only a link to a page
+    const site = h.get("sec-fetch-site");
+    if ((site === "cross-site" || site === "same-site") && !pageLink(req, socket)) return no(403, site);
 
     if (url.pathname === "/shepherdr/pair") {
       if (req.method === "GET") return page(pairPage());
@@ -166,7 +168,7 @@ export class Proxy {
     if (path === "/api/proxy/pair") {
       if (!this.conf) return json({ error: "proxy mode is off: shepherdr web proxy setup, then restart the service" }, 409);
       const { code, expires } = this.devices.mint();
-      this.log(`proxy: a pairing code was made${body?.name ? ` for ${String(body.name).slice(0, 40)}` : ""}`);
+      this.log(`proxy: a pairing code was made${body?.name ? ` for ${cleanName(body.name)}` : ""}`);
       return json({ code, expires, link: `${this.conf.origin}/shepherdr/pair` });
     }
     if (path === "/api/proxy/revoke") return this.devices.revoke(body?.id) ? json({ ok: true }) : json({ error: "no such device" }, 404);

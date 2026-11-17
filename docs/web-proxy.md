@@ -14,8 +14,10 @@ tailnet way keeps working beside it. How the fork is kept: [FORK.md](../FORK.md)
   `Authorization` are dropped before anything reads them, so the local token or a forged Tailscale identity grants
   nothing there.
 - As on the tailnet: only the configured name (`Host`) gets in (no DNS rebinding); writes and sockets need the page's own
-  `Origin`, and writes the `x-shepherdr: 1` header no plain form or link can send; a fetch from another site is refused.
-- 10 wrong codes within 5 minutes void every open code.
+  `Origin`, and writes the `x-shepherdr: 1` header no plain form or link can send; a fetch from another site is refused,
+  and so is one from a sibling name on the same private domain (another `*.blackbox` page): only a link to the page opens.
+- 10 wrong codes within 5 minutes void every open code (the count then starts again). Someone who can reach the proxy
+  and keeps guessing can stop pairing while they do, but cannot get in; `shepherdr web pair` again once they stop.
 - The cookie is `HttpOnly; Secure; SameSite=Strict; Path=/shepherdr`. Only its SHA-256 is kept, in `devices.json` in
   the service's folder (`~/.local/state/shepherdr/service/`, mode 0600). Codes and cookies are never logged.
 - A link to the app from another site opens without the cookie (`SameSite=Strict`) and shows the pairing page: open it

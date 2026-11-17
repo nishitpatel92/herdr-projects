@@ -75,6 +75,7 @@ export class Devices {
       this.wrong.push(at);
       if (this.wrong.length >= MAX_WRONG && this.codes.size) {
         this.codes.clear();
+        this.wrong = [];   // counted afresh, so a guesser can't keep every later code void with one try each
         this.log(`proxy: ${this.wrong.length} wrong pairing codes in 5 minutes; every open code is void`);
       }
       return { ok: false, why: "That code is wrong or has expired." };

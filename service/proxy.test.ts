@@ -154,6 +154,9 @@ describe("with a paired device", () => {
     expect((await send(req("/shepherdr/api/state", { headers: withCookie(cookie, { "sec-fetch-site": "cross-site" }) })))?.status).toBe(403);
     expect((await send(req("/shepherdr/", { headers: withCookie(cookie, { ...NAV, "sec-fetch-site": "cross-site" }) })))?.status).toBe(200);
     expect((await send(req("/shepherdr/api/state", { method: "OPTIONS", headers: withCookie(cookie) })))?.status).toBe(403);
+    // a sibling *.blackbox site is same-site: its fetches are refused too, a link to the page still opens it
+    expect((await send(req("/shepherdr/api/state", { headers: withCookie(cookie, { "sec-fetch-site": "same-site" }) })))?.status).toBe(403);
+    expect((await send(req("/shepherdr/", { headers: withCookie(cookie, { ...NAV, "sec-fetch-site": "same-site" }) })))?.status).toBe(200);
   });
   test("/ goes to /shepherdr/", async () => {
     const { send, req } = setup();
