@@ -24,6 +24,7 @@ import { Rename } from "./rename.js";
 import { unreadSpaces, readShown } from "./unread.js";
 import { muted } from "./notify.js";
 import { MachinePopup, openMachine, openMachineSettings } from "./machine-popup.js";
+import { attachTasks } from "./fork-tasks.js"; // fork: live tasks under their space
 import { startPolling, allStats, healthMeters, bars } from "./machines.js";
 import { countBadge, red, green, H, TEXT, RADIUS, toast } from "./ui.js";
 import { on as addonOn } from "./addons.js";
@@ -174,6 +175,7 @@ export default class Spaces extends View {
     // `git status` walks the whole tree, on another machine a process there:
     // only when its answer could have changed (see `due`).
     cx.timer.every(250, (cx) => this.checkNew(cx));
+    attachTasks(this, cx); // fork: live tasks under their space
   }
 
   // This computer's file every read; each linked machine's that has spaces here every third (about every 15 s, as the

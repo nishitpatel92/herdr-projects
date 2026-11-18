@@ -3,7 +3,9 @@
 Our pinned Shepherdr: upstream ([eliasstravik/shepherdr](https://github.com/eliasstravik/shepherdr)) at one release
 tag, plus a small set of our own commits. They add **proxy mode**: the web app reached through our own reverse proxy
 (Caddy on a home server, over the home LAN and WireGuard) instead of Tailscale, with each device paired once
-([docs/web-proxy.md](docs/web-proxy.md)). Everything else is upstream's.
+([docs/web-proxy.md](docs/web-proxy.md)); **live tasks in the Spaces sidebar**: under each space, its tasks at work,
+needing you or waiting (not Done, To do or Scheduled), a click opening the task; and **`--space` by name**: herdr-task
+keeps a space's id when given its name. Everything else is upstream's.
 
 pin: v3.1.37
 
@@ -24,6 +26,10 @@ Refreshed by `scripts/fork/sync.sh` on each sync, or by `scripts/fork/sync.sh --
 on its own (a commit that touches only FORK.md is not listed). `scripts/fork/check.sh` fails when the list is out of date.
 
 <!-- commits:start -->
+- 9cb5d6e1 Review round 2: the tasks-folder watch is armed before every read, so a change during a read isn't lost
+- e047f6a7 Review round 1: a window with no spaces takes no --space value; a failed tasks-folder watch reads the lists again
+- 3cf757c9 herdr-task --space: a space's name becomes its id; one no space has fails, listing the spaces
+- 69f61105 Spaces sidebar: each space's live tasks under it (working, needs you, waiting), a click opening the task
 - e1ce2093 Proxy mode: second-review fixes (link and push follow the listener, which retries; every-interface in any spelling; voided-codes log count; check.sh keeps FORK.md's commit list current)
 - 38c0cc64 check.sh: read unittest failures in both name formats (Python 3.9's has no method name)
 - 49b63172 Proxy mode: review fixes (wrong-try count restarts after voiding, same-site fetches refused, CLI flags need values, names cleaned in the log)
@@ -41,7 +47,11 @@ on its own (a commit that touches only FORK.md is not listed). `scripts/fork/che
 
 New files, ours alone: `service/devices.ts`, `service/proxy.ts`, `service/proxy-pages.ts`, `service/proxy-cli.ts`, their
 tests (`service/*.test.ts`, `test/test_fork_proxy.py`), `docs/web-proxy.md`, `scripts/fork/`, this file,
-`.herdr-projects.json`. Edits to upstream's files are kept to one-line hunks, so a sync rarely conflicts:
+`.herdr-projects.json`; the sidebar's live tasks: `core/sidebar-tasks.js` (which tasks, which space, which dot) and its
+test `core/sidebar-tasks.test.js`, `mods/spaces-chat/fork-tasks.js` (the rows, the watch, the click), and the copies
+`bin/sync-shared` makes of `core/sidebar-tasks.js`, `core/tasks.js` and `core/tasklists.js` in `mods/spaces-chat/core/`;
+`--space` by name: `mods/tasks/bin/herdr_task/fork_spaces.py` and `test/test_fork_space_arg.py`. Edits to upstream's
+files are kept to one-line hunks, so a sync rarely conflicts:
 
 - `service/auth.ts`: `Pass.via` may be `"proxy"`.
 - `service/main.ts`: the import; `ownLink` prefers the proxy link; push's subject (`pushOrigin`); "Tailscale isn't
@@ -49,6 +59,13 @@ tests (`service/*.test.ts`, `test/test_fork_proxy.py`), `docs/web-proxy.md`, `sc
   web-visitor checks also `proxied(req)`; `proxyPass(req) ?? gate(…)`; `/api/proxy/*` handed to `proxyApi`.
 - `bin/shepherdr`: `shepherdr web proxy|pair|devices|revoke` run `service/proxy-cli.ts`; their lines in the usage.
 - `package.json`: a `check` script (`npm run check` runs `scripts/fork/check.sh`).
+- `mods/spaces-chat/main.js`: the `fork-tasks.js` import, and `attachTasks(this, cx)` at the end of `init()` (it wraps
+  the view's `row()`, `draw()` and `refreshMachines()` at run time, so their code stays upstream's).
+- `lib/COPIES`: `core/tasks.js` and `core/tasklists.js` also go to `spaces-chat`; the line `core/sidebar-tasks.js:
+  spaces-chat` under `core/tasks.js`.
+- `mods/tasks/bin/herdr_task/commands.py`: the `fork_spaces` import; `space_arg(args.space)` for `bare(args.space)` in
+  add, start, resume, switch and the restart helper (five lines).
+- `mods/tasks/bin/herdr_task/automations.py`: the `fork_spaces` import; `space_arg(args.space)` in `auto --space`.
 
 ## The check
 
